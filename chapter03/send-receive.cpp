@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <mpi.h>
-#include <windows.h>
+
 
 int main(int argc, char* argv[])
 {
@@ -14,9 +14,6 @@ int main(int argc, char* argv[])
 
     MPI_Comm_size(comm, &num_processes);
     MPI_Comm_rank(comm, &proc_num);
-    
-    std::cout << "Sleeping...!" << std::endl;
-    Sleep(5000);
     
     
     if (proc_num == 0) {

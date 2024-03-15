@@ -1,0 +1,19 @@
+{
+    "env": {
+        "myIncludePath": ["${workspaceFolder}/include", "${workspaceFolder}/src"],
+        "myDefines": ["DEBUG", "MY_FEATURE=1"]
+    },
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**", "/usr/lib/x86_64-linux-gnu/openmpi/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

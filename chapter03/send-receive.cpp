@@ -2,8 +2,14 @@
 #include <string>
 #include <mpi.h>
 
-
-int main(int argc, char* argv[])
+/*
+    - n processes are sprung up.
+    - process rank 0 sends out a greeting message to 
+      the rest of the processes.
+    - each of the processes rank 1 to n-1, receive a greeting
+      message from process 0; then, print the message.
+*/
+int send_receive(int argc, char* argv[])
 {
     MPI_Comm comm;
     int num_processes, proc_num;
@@ -34,5 +40,9 @@ int main(int argc, char* argv[])
         std::cout << ">> I received " << buf << " from process 0 tag " << status.MPI_TAG << std::endl;
     }
     MPI_Finalize();
+    return 0;
 }
 
+int main(int argc, char* argv[]) {
+    return send_receive(argc, argv);
+}

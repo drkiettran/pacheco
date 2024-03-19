@@ -4,18 +4,7 @@
 
 // const int m_val = 4, n_val = 5;
 const int m_val = 7, n_val = 5;
-
-
-// double raw_A[] = {2, 1, 3, 4, 0, 5, -1, 2, -2, 4, 0, 3, 4, 1, 2, 2, 3, 1, -3, 0};
-// double raw_A_1[] = {2, 1, 3, 4, 0, 5, -1, 2, -2, 4, 0, 3, 4, 1, 2, 2, 1, 3, 4, 0, 5, -1, 2, -2, 4, 0, 3, 4, 1, 2, 2, 3, 1, -3, 0};
 double raw_x[] = {3, 1, 4, 0, 3};
-
-// double new_A[4][5] = {{2, 1, 3, 4, 0}, 
-//                       {5, -1, 2, -2, 4}, 
-//                       {0, 3, 4, 1, 2}, 
-//                       {2, 3, 1, -3, 0}
-//                      };
-
 double raw_A[7][5] = {{2, 1, 3, 4, 0}, 
                       {5, -1, 2, -2, 4}, 
                       {0, 3, 4, 1, 2}, 
@@ -27,12 +16,14 @@ double raw_A[7][5] = {{2, 1, 3, 4, 0},
 void get_array(double **A, int* m, int*n) {
     *m = m_val;
     *n = n_val;
-    *A = &raw_A[0][0];
+    *A = (double*) malloc(m_val*n_val*sizeof(double));
+    memcpy(*A, &raw_A[0][0], m_val*n_val*sizeof(double));
     return;
 }
 
 void get_vector(double** x, int m) {
-    *x = &raw_x[0];
+    *x = (double*)malloc(m*sizeof(double));
+    memcpy(*x, &raw_x[0], m*sizeof(double));
 }
 
 void print_array(int rank, double *A, int m, int n) {
@@ -76,7 +67,7 @@ double* mv_mult(double* A, double* x, int m, int n) {
 int mv_mult(int argc, char* argv[]) {
     MPI_Comm comm;
     int size, rank;
-    double* A, *x;
+    double* A = NULL, *x = NULL;
     int m, n;
     const int root = 0;
     int count, rem;
@@ -89,7 +80,7 @@ int mv_mult(int argc, char* argv[]) {
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
 
-    if (rank == 0) {
+    if (rank == root) {
         get_input(rank, &A, &x, &m, &n);
         if (size > 1) {
             count = m / (size-1);
@@ -100,34 +91,41 @@ int mv_mult(int argc, char* argv[]) {
         }
     }
 
-    // broadcast m, n and x
+    // broadcast count and n.
     MPI_Bcast(&count, 1, MPI_INT, 0, comm);
     MPI_Bcast(&n, 1, MPI_INT, 0, comm);
     
-
-    if (rank == 0) {
+    if (rank == root) {
         for (int i = 1; i < size; i++) {
             std::cout << "Sending to " << i << " " << count << " row(s)" << std::endl;
             MPI_Send(x, n, MPI_DOUBLE, i, 1, MPI_COMM_WORLD);
             MPI_Send(&A[(i-1)*count*n], count*n, MPI_DOUBLE, i, 1, MPI_COMM_WORLD);
         }
+
         std::cout << "to process from " << rem << " rows" << std::endl;
-        double* B = mv_mult(&A[count*(size-1)*n], x, rem, n);
-        
-        if (size > 1) {
-            double* C = (double*)malloc(count*sizeof(double));
-            for (int i = 1; i < size; i++) {
-                MPI_Recv(C, count, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                for (int row = 0; row < count; row++) {
-                    std::cout << "rank " << i << ":" << C[row] << std::endl;
-                }
+        double* B = mv_mult(&A[count*(size-1)*n], x, rem, n);     
+        double* C = (double*)malloc(count*sizeof(double));
+        double* y = (double*)malloc(m*sizeof(double));
+        int row_count = 0;
+        for (int i = 1; i < size; i++) {
+            MPI_Recv(C, count, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            for (int row = 0; row < count; row++) {
+                y[row_count++] = C[row];
             }
         }
+
         for (int row = 0; row < rem; row++) {
-            std::cout << "rank " << rank << ":" << B[row] << std::endl;
+            y[row_count++] = B[row];
         }
-
-
+        std::cout << std::flush;
+        std::cout << "RESULT: " << std::endl;
+        print_vector(rank, y, m);
+        std::cout << std::flush;
+        free(A);
+        free(x);
+        free(B);
+        free(C);
+        free(y);
     } else {
         std::cout << "alloc " << count*n*sizeof(MPI_DOUBLE) << " bytes" << std::endl;
         x = (double*) malloc(n*sizeof(MPI_DOUBLE));
@@ -138,14 +136,14 @@ int mv_mult(int argc, char* argv[]) {
         print_array(rank, A, count, n);
 
         double* B = mv_mult(A, x, count, n);        
-        // for (int row = 0; row < count; row++) {
-        //     std::cout << "rank " << rank << " result:" << B[row] << std::endl;
-        // }
 
         MPI_Send(B, count, MPI_DOUBLE, root, 1, MPI_COMM_WORLD);
-        std::cout << "rank " << rank << " comletes!" << std::endl;
+        std::cout << "rank " << rank << " completes!" << std::endl;
+        free(x);
+        free(A);
+        free(B);
     }
-
+    
     MPI_Finalize();
     return 0;
 }
